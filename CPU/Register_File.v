@@ -29,10 +29,10 @@ module Register_File(
     input  wire [2:0]  read_reg2,
     input  wire [2:0]  write_reg,
 
-    input  wire [15:0] write_data,
+    input  wire [7:0] write_data,
 
-    output wire [15:0] read_data1,
-    output wire [15:0] read_data2
+    output wire [7:0] read_data1,  //used to be 16-bit, now fixed to 8-bits
+    output wire [7:0] read_data2
 );
 
     // 8 registers of 8 bits each

@@ -38,6 +38,7 @@ module cpu_top(
     wire        PCSrc;
     wire        IRWrite;
     wire        IorD;
+    wire        MemWrite;
 
     // Datapath connections
     wire [15:0] mem_address; //16-bit
@@ -47,6 +48,7 @@ module cpu_top(
 
     wire        zero_flag;
     wire [3:0]  opcode;
+    wire [2:0]  funct;
 
     // ====================================
     // Instruction Memory
@@ -66,8 +68,8 @@ module cpu_top(
         .addr(mem_address),
         .write_data(mem_write_data),
         .read_data(data_mem_out),
-        .mem_write(IorD),          // simple assumption
-        .mem_read(~IorD)
+        .mem_write(MemWrite),        // simple assumption
+        .mem_read(~MemWrite)     //temp, since read is combinational
     );
 
     // ====================================
@@ -97,7 +99,8 @@ module cpu_top(
         .mem_write_data(mem_write_data),
 
         .zero_flag(zero_flag),
-        .opcode(opcode)
+        .opcode(opcode),
+        .funct(funct)  //NEW, added ALUSubop
     );
 
     // ====================================
@@ -109,6 +112,7 @@ module cpu_top(
         .reset(reset),
 
         .opcode(opcode),
+        .funct(funct),
         .zero_flag(zero_flag),
 
         .RegWrite(RegWrite),
@@ -118,7 +122,8 @@ module cpu_top(
         .PCWrite(PCWrite),
         .PCSrc(PCSrc),
         .IRWrite(IRWrite),
-        .IorD(IorD)
+        .IorD(IorD),
+        .MemWrite(MemWrite) //added MemWrite
     );
 
 endmodule

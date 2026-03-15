@@ -1,23 +1,5 @@
 `timescale 1ns / 1ps
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date: 03/04/2026 10:30:10 AM
-// Design Name: 
-// Module Name: Datapath
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
+
 
 
 module Datapath(
@@ -43,7 +25,8 @@ module Datapath(
 
     // To control unit
     output wire        zero_flag,
-    output wire [3:0]  opcode
+    output wire [3:0]  opcode,
+    output wire [2:0]  funct
 );
 
     // ====================================
@@ -63,6 +46,7 @@ module Datapath(
     // ====================================
 
     assign opcode = IR[15:12];
+    assign funct =  IR[2:0]; //NEW, funct bits
 
     wire [2:0] rd = IR[11:9];
     wire [2:0] rs = IR[8:6];
@@ -73,7 +57,7 @@ module Datapath(
     // 6-bit → 8-bit sign extend
     wire [7:0] imm6_ext = {{2{imm6[5]}}, imm6};
 
-    // 6-bit → 16-bit sign extend (for branch)
+    // 6-bit → 16-bit sign extend (for branch) 
     wire [15:0] imm6_ext_16 = {{10{imm6[5]}}, imm6};
 
     // ====================================
@@ -83,13 +67,16 @@ module Datapath(
     wire [7:0] read_data1;
     wire [7:0] read_data2;
     wire [7:0] write_back_data;
+    
+    wire isSTORE = (opcode == 4'b0011); //updated, isSTORE opcode specifically
+    wire [2:0] read_reg2_sel = isSTORE ? rd : rt;
 
     Register_File RF (
         .clk(clk),
         .reset(reset),
         .RegWrite(RegWrite),
         .read_reg1(rs),
-        .read_reg2(rt),
+        .read_reg2(read_reg2_sel),
         .write_reg(rd),
         .write_data(write_back_data),
         .read_data1(read_data1),
@@ -103,7 +90,7 @@ module Datapath(
     wire [7:0] ALU_inB;
     wire [7:0] ALU_result;
 
-    assign ALU_inB = (ALUSrc == 1'b0) ? B : imm6_ext;
+    assign ALU_inB = (ALUSrc == 1'b0) ? B : imm6_ext; //ALU B mux
 
     alu alu_unit (
         .A(A),
@@ -116,7 +103,7 @@ module Datapath(
     assign write_back_data = (MemToReg == 1'b0) ? ALUOut
                                                 : MDR;
 
-    assign mem_write_data = B;
+    assign mem_write_data = B; //IMPORTANT LINE
 
     // ====================================
     //  16-bit PC Adder Section (NEW)
@@ -127,7 +114,7 @@ module Datapath(
     wire [15:0] next_PC;
 
     assign PC_plus_1     = PC + 16'd1;
-    assign branch_target = PC + imm6_ext_16;
+    assign branch_target = PC + imm6_ext_16; //NEEDS UPDATE
 
     assign next_PC = (PCSrc == 1'b0) ? PC_plus_1
                                      : branch_target;

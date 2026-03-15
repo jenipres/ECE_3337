@@ -25,6 +25,7 @@ module Control_Unit(
     input  wire        reset,
     input  wire [3:0]  opcode,
     input  wire        zero_flag,
+    input  wire [2:0]  funct,      //NEW, R-type ALU function bits
 
     output reg         RegWrite,
     output reg         MemToReg,
@@ -74,6 +75,8 @@ module Control_Unit(
             S_DECODE: begin
                 case (opcode)
                     4'b0000: next_state = S_EXECUTE; // R-type
+                    
+                    
                     4'b0001, 4'b1010, 4'b1011:
                                next_state = S_EXECUTE; // ADDI/ANDI/ORI
                     4'b0010, 4'b0011:
@@ -98,7 +101,7 @@ module Control_Unit(
             end
 
             S_MEM:
-                next_state = (opcode == 4'b0010) ? S_WB : S_FETCH;
+              next_state = (opcode == 4'b0010) ? S_WB : S_FETCH;
 
             S_WB:
                 next_state = S_FETCH;
@@ -148,20 +151,26 @@ module Control_Unit(
 
             S_EXECUTE: begin
                 case (opcode)
+                    //---- R-TYPE ----
+                   4'b0000:begin
+                        ALUOp = funct; //NEW: use function bits
+                        ALUSrc = 0;   //hold on, check up on this LINE
+                        end
+                       
+                   // ===== IMMEDIATE ALU =====
+                  4'b0001: begin ALUOp = 3'b000; ALUSrc = 1; end // ADDI
+                  4'b1010: begin ALUOp = 3'b010; ALUSrc = 1; end // ANDI
+                  4'b1011: begin ALUOp = 3'b011; ALUSrc = 1; end // ORI
 
-                    4'b0000: ALUOp = 3'b000; // R-type (funct later)
+                   // ===== LOAD / STORE =====
+                  4'b0010, 4'b0011: begin
+                  ALUOp  = 3'b000; // address calc
+                  ALUSrc = 1;
+                  end
 
-                    4'b0001: begin ALUOp = 3'b000; ALUSrc = 1; end // ADDI
-                    4'b1010: begin ALUOp = 3'b010; ALUSrc = 1; end // ANDI
-                    4'b1011: begin ALUOp = 3'b011; ALUSrc = 1; end // ORI
-
-                    4'b0010, 4'b0011: begin
-                        ALUOp = 3'b000; // address calc
-                        ALUSrc = 1;
-                    end
-
-                    4'b0100, 4'b0101,
-                    4'b1000: ALUOp = 3'b001; // SUB for branch/CMP
+                 // ===== BRANCH / CMP =====
+                4'b0100, 4'b0101,
+                4'b1000: ALUOp = 3'b001; // SUB
 
                 endcase
             end
