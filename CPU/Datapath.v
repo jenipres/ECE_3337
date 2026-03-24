@@ -12,7 +12,7 @@ module Datapath(
     input  wire        ALUSrc,
     input  wire [2:0]  ALUOp,
     input  wire        PCWrite,
-    input  wire        PCSrc,        // 0 = PC+1, 1 = branch target
+    input  wire [1:0]  PCSrc,        // 0 = PC+1, 1 = branch target, NEW: 2 = Jump address
     input  wire        IRWrite,
     input  wire        IorD,
 
@@ -53,12 +53,16 @@ module Datapath(
     wire [2:0] rt = IR[5:3];
 
     wire [5:0] imm6 = IR[5:0];
+    wire [11:0] jump_addr12 = IR[11:0];
 
     // 6-bit → 8-bit sign extend
     wire [7:0] imm6_ext = {{2{imm6[5]}}, imm6};
 
     // 6-bit → 16-bit sign extend (for branch) 
     wire [15:0] imm6_ext_16 = {{10{imm6[5]}}, imm6};
+    
+    // Zero ext 12bit to 16-bit for addressing
+   wire [15:0] jump_addr16 = {4'b0, jump_addr12}; //NEW, added jmp zero extension
 
     // ====================================
     //  Register File (8-bit)
@@ -116,12 +120,16 @@ module Datapath(
     assign PC_plus_1     = PC + 16'd1;
     assign branch_target = PC + imm6_ext_16; //NEEDS UPDATE
 
-    assign next_PC = (PCSrc == 1'b0) ? PC_plus_1
-                                     : branch_target;
+   assign next_PC = (PCSrc == 2'b00) ? PC_plus_1
+               : (PCSrc == 2'b01) ? branch_target
+               :                    jump_addr16;   // 2'b10 = JUMP    
 
     // ====================================
     //  Memory Address MUX
     // ====================================
+
+   
+
 
     // Instruction fetch uses PC
     // Data memory uses ALUOut (zero extended)

@@ -32,7 +32,7 @@ module Control_Unit(
     output reg         ALUSrc,
     output reg  [2:0]  ALUOp,
     output reg         PCWrite,
-    output reg         PCSrc,
+    output reg  [1:0]  PCSrc,
     output reg         IRWrite,
     output reg         IorD,
     output reg         MemWrite
@@ -191,13 +191,13 @@ module Control_Unit(
                 if ((opcode == 4'b0100 && zero_flag) ||
                     (opcode == 4'b0101 && !zero_flag)) begin
                     PCWrite = 1;
-                    PCSrc   = 1;
+                    PCSrc   = 2'b01; //was PCSrc = 1
                 end
             end
 
             S_JUMP: begin
                 PCWrite = 1;
-                PCSrc   = 1;
+                PCSrc   = 2'b10;
             end
 
             S_LDI: begin
