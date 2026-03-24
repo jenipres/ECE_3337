@@ -35,7 +35,7 @@ module cpu_top(
     wire        ALUSrc;
     wire [2:0]  ALUOp;
     wire        PCWrite;
-    wire        PCSrc;
+    wire [1:0]  PCSrc;
     wire        IRWrite;
     wire        IorD;
     wire        MemWrite;
