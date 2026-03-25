@@ -1,31 +1,11 @@
 `timescale 1ns / 1ps
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date: 03/04/2026 10:30:10 AM
-// Design Name: 
-// Module Name: Control_Unit
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
-
 
 module Control_Unit(
     input  wire        clk,
     input  wire        reset,
     input  wire [3:0]  opcode,
     input  wire        zero_flag,
-    input  wire [2:0]  funct,      //NEW, R-type ALU function bits
+    input  wire [2:0]  funct,
 
     output reg         RegWrite,
     output reg         MemToReg,
@@ -35,7 +15,9 @@ module Control_Unit(
     output reg  [1:0]  PCSrc,
     output reg         IRWrite,
     output reg         IorD,
-    output reg         MemWrite
+    output reg         MemWrite,
+    output reg         LoadAB,      // NEW: enable A/B latching
+    output reg         ALUOutWrite  // NEW: enable ALUOut latching
 );
 
     localparam
@@ -74,20 +56,16 @@ module Control_Unit(
 
             S_DECODE: begin
                 case (opcode)
-                    4'b0000: next_state = S_EXECUTE; // R-type
-                    
-                    
-                    4'b0001, 4'b1010, 4'b1011:
-                               next_state = S_EXECUTE; // ADDI/ANDI/ORI
-                    4'b0010, 4'b0011:
-                               next_state = S_EXECUTE; // LOAD/STORE
-                    4'b0100, 4'b0101:
-                               next_state = S_EXECUTE; // BREQ/BRNEQ
-                    4'b0110: next_state = S_JUMP;
-                    4'b0111: next_state = S_LDI;
-                    4'b1000: next_state = S_EXECUTE; // CMP
-                    4'b1111: next_state = S_HALT;
-                    default: next_state = S_FETCH;
+                    4'b0000:             next_state = S_EXECUTE; // R-type
+                    4'b0001, 4'b1010,
+                    4'b1011:             next_state = S_EXECUTE; // ADDI/ANDI/ORI
+                    4'b0010, 4'b0011:    next_state = S_EXECUTE; // LOAD/STORE
+                    4'b0100, 4'b0101:    next_state = S_EXECUTE; // BREQ/BRNEQ
+                    4'b0110:             next_state = S_JUMP;
+                    4'b0111:             next_state = S_LDI;
+                    4'b1000:             next_state = S_EXECUTE; // CMP
+                    4'b1111:             next_state = S_HALT;
+                    default:             next_state = S_FETCH;
                 endcase
             end
 
@@ -101,7 +79,7 @@ module Control_Unit(
             end
 
             S_MEM:
-              next_state = (opcode == 4'b0010) ? S_WB : S_FETCH;
+                next_state = (opcode == 4'b0010) ? S_WB : S_FETCH;
 
             S_WB:
                 next_state = S_FETCH;
@@ -120,6 +98,7 @@ module Control_Unit(
 
             default:
                 next_state = S_FETCH;
+
         endcase
     end
 
@@ -130,47 +109,57 @@ module Control_Unit(
     always @(*) begin
 
         // Defaults
-        RegWrite = 0;
-        MemToReg = 0;
-        ALUSrc   = 0;
-        ALUOp    = 3'b000;
-        PCWrite  = 0;
-        PCSrc    = 0;
-        IRWrite  = 0;
-        IorD     = 0;
-        MemWrite = 0;
+        RegWrite    = 0;
+        MemToReg    = 0;
+        ALUSrc      = 0;
+        ALUOp       = 3'b000;
+        PCWrite     = 0;
+        PCSrc       = 2'b00;
+        IRWrite     = 0;
+        IorD        = 0;
+        MemWrite    = 0;
+        LoadAB      = 0;  // NEW default
+        ALUOutWrite = 0;  // NEW default
 
         case (state)
 
             S_FETCH: begin
                 IRWrite = 1;
                 PCWrite = 1;
-                PCSrc   = 0;
+                PCSrc   = 2'b00;
                 IorD    = 0;
             end
 
+            S_DECODE: begin
+                LoadAB = 1;  // NEW: latch A and B from register file
+            end
+
             S_EXECUTE: begin
+                ALUOutWrite = 1; // NEW: latch ALUOut result
                 case (opcode)
-                    //---- R-TYPE ----
-                   4'b0000:begin
-                        ALUOp = funct; //NEW: use function bits
-                        ALUSrc = 0;   //hold on, check up on this LINE
-                        end
-                       
-                   // ===== IMMEDIATE ALU =====
-                  4'b0001: begin ALUOp = 3'b000; ALUSrc = 1; end // ADDI
-                  4'b1010: begin ALUOp = 3'b010; ALUSrc = 1; end // ANDI
-                  4'b1011: begin ALUOp = 3'b011; ALUSrc = 1; end // ORI
+                    // ===== R-TYPE =====
+                    4'b0000: begin
+                        ALUOp  = funct;
+                        ALUSrc = 0;
+                    end
 
-                   // ===== LOAD / STORE =====
-                  4'b0010, 4'b0011: begin
-                  ALUOp  = 3'b000; // address calc
-                  ALUSrc = 1;
-                  end
+                    // ===== IMMEDIATE ALU =====
+                    4'b0001: begin ALUOp = 3'b000; ALUSrc = 1; end // ADDI
+                    4'b1010: begin ALUOp = 3'b010; ALUSrc = 1; end // ANDI
+                    4'b1011: begin ALUOp = 3'b011; ALUSrc = 1; end // ORI
 
-                 // ===== BRANCH / CMP =====
-                4'b0100, 4'b0101,
-                4'b1000: ALUOp = 3'b001; // SUB
+                    // ===== LOAD / STORE =====
+                    4'b0010, 4'b0011: begin
+                        ALUOp  = 3'b000; // address calc (ADD)
+                        ALUSrc = 1;
+                    end
+
+                    // ===== BRANCH / CMP =====
+                    4'b0100, 4'b0101,
+                    4'b1000: begin
+                        ALUOp  = 3'b001; // SUB for comparison
+                        ALUSrc = 0;
+                    end
 
                 endcase
             end
@@ -188,10 +177,11 @@ module Control_Unit(
             end
 
             S_BRANCH: begin
-                if ((opcode == 4'b0100 && zero_flag) ||
-                    (opcode == 4'b0101 && !zero_flag)) begin
+                // zero_flag is stable here since ALUOutWrite=0 in this state
+                if ((opcode == 4'b0100 &&  zero_flag) ||   // BREQ:  branch if equal
+                    (opcode == 4'b0101 && !zero_flag)) begin // BRNEQ: branch if not equal
                     PCWrite = 1;
-                    PCSrc   = 2'b01; //was PCSrc = 1
+                    PCSrc   = 2'b01;
                 end
             end
 
@@ -212,4 +202,3 @@ module Control_Unit(
     end
 
 endmodule
-
