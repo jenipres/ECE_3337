@@ -1,30 +1,9 @@
 `timescale 1ns / 1ps
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date: 03/04/2026 10:50:30 AM
-// Design Name: 
-// Module Name: cpu_top
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
-
 
 module cpu_top(
     input wire clk,
     input wire reset
 );
-
     // ====================================
     // Interconnect Wires
     // ====================================
@@ -39,13 +18,14 @@ module cpu_top(
     wire        IRWrite;
     wire        IorD;
     wire        MemWrite;
+    wire        LoadAB;      // NEW
+    wire        ALUOutWrite; // NEW
 
     // Datapath connections
-    wire [15:0] mem_address; //16-bit
+    wire [15:0] mem_address;
     wire [7:0]  mem_write_data;
     wire [7:0]  data_mem_out;
     wire [15:0] instr_mem_out;
-
     wire        zero_flag;
     wire [3:0]  opcode;
     wire [2:0]  funct;
@@ -53,33 +33,29 @@ module cpu_top(
     // ====================================
     // Instruction Memory
     // ====================================
-
     Instruction_Memory IM (
-        .addr(mem_address),       // uses PC when IorD = 0
+        .addr(mem_address),
         .instruction(instr_mem_out)
     );
 
     // ====================================
     // Data Memory (8-bit)
     // ====================================
-
     Data_Memory DM (
         .clk(clk),
         .addr(mem_address),
         .write_data(mem_write_data),
         .read_data(data_mem_out),
-        .mem_write(MemWrite),        // simple assumption
-        .mem_read(~MemWrite)     //temp, since read is combinational
+        .mem_write(MemWrite),
+        .mem_read(~MemWrite)
     );
 
     // ====================================
     // Datapath
     // ====================================
-
     Datapath DP (
         .clk(clk),
         .reset(reset),
-
         // Control
         .RegWrite(RegWrite),
         .MemToReg(MemToReg),
@@ -89,32 +65,28 @@ module cpu_top(
         .PCSrc(PCSrc),
         .IRWrite(IRWrite),
         .IorD(IorD),
-
+        .LoadAB(LoadAB),           // NEW
+        .ALUOutWrite(ALUOutWrite),  // NEW
         // Memory
         .instr_mem_out(instr_mem_out),
         .data_mem_out(data_mem_out),
-
         // Outputs
         .mem_address(mem_address),
         .mem_write_data(mem_write_data),
-
         .zero_flag(zero_flag),
         .opcode(opcode),
-        .funct(funct)  //NEW, added ALUSubop
+        .funct(funct)
     );
 
     // ====================================
     // Control Unit (FSM)
     // ====================================
-
     Control_Unit CU (
         .clk(clk),
         .reset(reset),
-
         .opcode(opcode),
         .funct(funct),
         .zero_flag(zero_flag),
-
         .RegWrite(RegWrite),
         .MemToReg(MemToReg),
         .ALUSrc(ALUSrc),
@@ -123,7 +95,9 @@ module cpu_top(
         .PCSrc(PCSrc),
         .IRWrite(IRWrite),
         .IorD(IorD),
-        .MemWrite(MemWrite) //added MemWrite
+        .MemWrite(MemWrite),
+        .LoadAB(LoadAB),           // NEW
+        .ALUOutWrite(ALUOutWrite)   // NEW
     );
 
 endmodule
